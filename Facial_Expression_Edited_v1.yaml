@@ -1,0 +1,485 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  annotations:
+    pipelines.kubeflow.org/pipeline_spec: '{"name": "facial-expression-8ir0x"}'
+  generateName: facial-expression-
+spec:
+  arguments:
+    parameters: []
+  entrypoint: facial-expression-8ir0x
+  serviceAccountName: pipeline-runner
+  templates:
+  - dag:
+      tasks:
+      - arguments:
+          parameters:
+          - name: kale-marshal-volume-name
+            value: pred-pvc
+        name: train-and-validate
+        template: train-and-validate
+      - arguments:
+          parameters:
+          - name: kale-marshal-volume-name
+            value: pred-pvc
+        dependencies:
+        - train-and-validate
+        name: cnn
+        template: cnn
+      - arguments:
+          parameters:
+          - name: kale-marshal-volume-name
+            value: pred-pvc
+        dependencies:
+        - cnn
+        name: fit-model
+        template: fit-model
+    name: facial-expression-8ir0x
+  - container:
+      args: []
+      command:
+      - python3
+      - -u
+      - -c
+      - "def train_and_validate():\
+        \n   import os\
+        \n   import shutil\
+        \n   from kale.utils import pod_utils\
+        \n   from kale.marshal import resource_save as _kale_resource_save\
+        \n   from kale.marshal import resource_load as _kale_resource_load\
+        \n   \
+        \n   _kale_data_directory = \"/marshal\"\
+        \n   \
+        \n   if not os.path.isdir(_kale_data_directory):\
+        \n       os.makedirs(_kale_data_directory, exist_ok=True)\
+        \n   \
+        \n   import numpy as np\
+        \n   import seaborn as sns\
+        \n   import utils\
+        \n   import os\
+        \n   import tensorflow as tf\
+        \n   from tensorflow.keras.preprocessing.image import ImageDataGenerator\
+        \n   from tensorflow.keras.layers import Dense, Input, Dropout, Flatten, Conv2D\
+        \n   from tensorflow.keras.layers import BatchNormalization, Activation, MaxPooling2D\
+        \n   from tensorflow.keras.models import Model, Sequential\
+        \n   from tensorflow.keras.optimizers import Adam\
+        \n   from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau\
+        \n   from tensorflow.keras.utils import plot_model\
+        \n   \
+        \n   from IPython.display import SVG, Image\
+        \n   from livelossplot.tf_keras import PlotLossesCallback\
+        \n   \
+        \n   img_size = 48\
+        \n   batch_size = 64\
+        \n   \
+        \n   datagen_train = ImageDataGenerator(horizontal_flip=True)\
+        \n   \
+        \n   train_generator = datagen_train.flow_from_directory(\"/tmp/train/\",\
+        \n                                                       target_size=(\
+        \n                                                           img_size, img_size),\
+        \n                                                       color_mode=\"grayscale\",\
+        \n                                                       batch_size=batch_size,\
+        \n                                                       class_mode='categorical',\
+        \n                                                       shuffle=True)\
+        \n   \
+        \n   datagen_validation = ImageDataGenerator(horizontal_flip=True)\
+        \n   validation_generator = datagen_validation.flow_from_directory(\"/tmp/test/\",\
+        \n                                                                 target_size=(\
+        \n                                                                     img_size, img_size),\
+        \n                                                                 color_mode=\"grayscale\",\
+        \n                                                                 batch_size=batch_size,\
+        \n                                                                 class_mode='categorical',\
+        \n                                                                 shuffle=False)\
+        \n   \
+        \n   print(\"Tensorflow version:\", tf.__version__)\
+        \n    \
+        \n   config = tf.compat.v1.ConfigProto(log_device_placement=True) \
+        \n   sess = tf.compat.v1.Session(config=config)\
+        \n   tf.compat.v1.keras.backend.set_session(sess)\
+        \n   \
+        \n   print(\"Num GPUs Available: \", len(tf.config.experimental.list_physical_devices('GPU')), \" Device Name:         \", tf.test.gpu_device_name())\
+        \n   \
+        \n   # -----------------------DATA SAVING START---------------------------------\
+        \n   #if \"validation_generator\" in locals():\
+        \n   #    _kale_resource_save(validation_generator, os.path.join(\
+        \n   #        _kale_data_directory, \"validation_generator\"))\
+        \n   #else:\
+        \n   #    print(\"_kale_resource_save: `validation_generator` not found.\")\
+        \n   #if \"train_generator\" in locals():\
+        \n   #    _kale_resource_save(train_generator, os.path.join(\
+        \n   #        _kale_data_directory, \"train_generator\"))\
+        \n   #else:\
+        \n   #    print(\"_kale_resource_save: `train_generator` not found.\")\
+        \n   # -----------------------DATA SAVING END-----------------------------------#
+        \nimport argparse\
+        \n_parser = argparse.ArgumentParser(prog='Train_And_A#alidate', description='')\
+        \n_parsed_args = vars(_parser.parse_args())\
+        \n_output_files = _parsed_args.pop(\"_output_paths\", [])\
+        \n_outputs = train_and_validate(**_parsed_args)"   
+      image: fkhader/tensorflow-1.14.0-notebook-cpu:v2
+      securityContext:
+        runAsUser: 1000570000
+      volumeMounts:
+      - mountPath: /marshal
+        name: kale-marshal-volume
+      workingDir: /tmp/Facial-Expression
+    inputs:
+      parameters:
+      - name: kale-marshal-volume-name
+    metadata:
+      annotations:
+        pipelines.kubeflow.org/component_spec: '{"inputs": [], "name": "Train and
+          validate", "outputs": []}'
+    name: train-and-validate
+    volumes:
+    - name: kale-marshal-volume
+      persistentVolumeClaim:
+        claimName: pred-pvc
+  - container:
+      args: []
+      command:
+      - python3
+      - -u
+      - -c
+      - "def cnn():\
+        \n\
+        \n   import os\
+        \n   import shutil\
+        \n   from kale.utils import pod_utils\
+        \n   from kale.marshal import resource_save as _kale_resource_save\
+        \n   from kale.marshal import resource_load as _kale_resource_load\
+        \n\
+        \n   _kale_data_directory = \"/marshal\"\
+        \n\
+        \n   if not os.path.isdir(_kale_data_directory):\
+        \n       os.makedirs(_kale_data_directory, exist_ok=True)\
+        \n\
+        \n   import numpy as np\
+        \n   import seaborn as sns\
+        \n   import utils\
+        \n   import os\
+        \n   import tensorflow as tf\
+        \n   from tensorflow.keras.preprocessing.image import ImageDataGenerator\
+        \n   from tensorflow.keras.layers import Dense, Input, Dropout, Flatten, Conv2D\
+        \n   from tensorflow.keras.layers import BatchNormalization, Activation, MaxPooling2D\
+        \n   from tensorflow.keras.models import Model, Sequential\
+        \n   from tensorflow.keras.optimizers import Adam\
+        \n   from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau\
+        \n   from tensorflow.keras.utils import plot_model\
+        \n\
+        \n   from IPython.display import SVG, Image\
+        \n   from livelossplot.tf_keras import PlotLossesCallback\
+        \n\
+        \n   # Initialising the CNN\
+        \n   model = Sequential()\
+        \n\
+        \n   # 1 - Convolution\
+        \n   model.add(Conv2D(64, (3, 3), padding='same', input_shape=(48, 48, 1)))\
+        \n   model.add(BatchNormalization())\
+        \n   model.add(Activation('relu'))\
+        \n   model.add(MaxPooling2D(pool_size=(2, 2)))\
+        \n   model.add(Dropout(0.25))\
+        \n\
+        \n   # 2nd Convolution layer\
+        \n   model.add(Conv2D(128, (5, 5), padding='same'))\
+        \n   model.add(BatchNormalization())\
+        \n   model.add(Activation('relu'))\
+        \n   model.add(MaxPooling2D(pool_size=(2, 2)))\
+        \n   model.add(Dropout(0.25))\
+        \n\
+        \n   # 3rd Convolution layer\
+        \n   model.add(Conv2D(512, (3, 3), padding='same'))\
+        \n   model.add(BatchNormalization())\
+        \n   model.add(Activation('relu'))\
+        \n   model.add(MaxPooling2D(pool_size=(2, 2)))\
+        \n   model.add(Dropout(0.25))\
+        \n\
+        \n   # 4th Convolution layer\
+        \n   model.add(Conv2D(512, (3, 3), padding='same'))\
+        \n   model.add(BatchNormalization())\
+        \n   model.add(Activation('relu'))\
+        \n   model.add(MaxPooling2D(pool_size=(2, 2)))\
+        \n   model.add(Dropout(0.25))\
+        \n\
+        \n   # Flattening\
+        \n   model.add(Flatten())\
+        \n\
+        \n   # Fully connected layer 1st layer\
+        \n   model.add(Dense(256))\
+        \n   model.add(BatchNormalization())\
+        \n   model.add(Activation('relu'))\
+        \n   model.add(Dropout(0.25))\
+        \n\
+        \n   # Fully connected layer 2nd layer\
+        \n   model.add(Dense(512))\
+        \n   model.add(BatchNormalization())\
+        \n   model.add(Activation('relu'))\
+        \n   model.add(Dropout(0.25))\
+        \n\
+        \n   model.add(Dense(7, activation='softmax'))\
+        \n\
+        \n   opt = Adam(lr=0.0005)\
+        \n   model.compile(optimizer=opt, loss='categorical_crossentropy',\
+        \n                 metrics=['accuracy'])\
+        \n   model.summary()\
+        \n\
+        \n   # -----------------------DATA SAVING START---------------------------------\
+        \n   #if \"model\" in locals():\
+        \n   #    _kale_resource_save(model, os.path.join(_kale_data_directory, \"model\"))\
+        \n   #else:\
+        \n   #    print(\"_kale_resource_save: `model` not found.\")\
+        \n   # -----------------------DATA SAVING END-----------------------------------\n
+        \nimport argparse\
+        \n_parser = argparse.ArgumentParser(prog='CNN', description='')\
+        \n_parsed_args = vars(_parser.parse_args())\
+        \n_output_files = _parsed_args.pop(\"_output_paths\", [])\
+        \n_outputs = cnn(**_parsed_args)"
+      image: fkhader/tensorflow-1.14.0-notebook-cpu:v2
+      securityContext:
+        runAsUser: 1000570000
+      volumeMounts:
+      - mountPath: /marshal
+        name: kale-marshal-volume
+      workingDir: /tmp/Facial-Expression
+    inputs:
+      parameters:
+      - name: kale-marshal-volume-name
+    metadata:
+      annotations:
+        pipelines.kubeflow.org/component_spec: '{"inputs": [], "name": "Cnn", "outputs":
+          []}'
+    name: cnn
+    volumes:
+    - name: kale-marshal-volume
+      persistentVolumeClaim:
+        claimName: pred-pvc
+  - container:
+      args: []
+      command:
+      - python3
+      - -u
+      - -c
+      - "def fit_model():\
+        \n import os \
+        \n import shutil\
+        \n from kale.utils import pod_utils\
+        \n from kale.marshal import resource_save as _kale_resource_save\
+        \n from kale.marshal import resource_load as _kale_resource_load\
+        \n \
+        \n _kale_data_directory = \"/marshal\"\
+        \n \
+        \n if not os.path.isdir(_kale_data_directory):\
+        \n     os.makedirs(_kale_data_directory, exist_ok=True)\
+        \n \
+        \n # -----------------------DATA LOADING START--------------------------------\
+        \n _kale_directory_file_names = [\
+        \n     os.path.splitext(f)[0]\
+        \n     for f in os.listdir(_kale_data_directory)\
+        \n     if os.path.isfile(os.path.join(_kale_data_directory, f))\
+        \n ]\
+        \n \
+        \n if \"model\" not in _kale_directory_file_names:\
+        \n     raise ValueError(\"model\" + \" does not exists in directory\")\
+        \n \
+        \n _kale_load_file_name = [\
+        \n     f\
+        \n     for f in os.listdir(_kale_data_directory)\
+        \n     if os.path.isfile(os.path.join(_kale_data_directory, f)) and\
+        \n     os.path.splitext(f)[0] == \"model\"\
+        \n ]\
+        \n if len(_kale_load_file_name) > 1:\
+        \n     raise ValueError(\"Found multiple files with name \" +\
+        \n                      \"model\" + \": \" + str(_kale_load_file_name))\
+        \n _kale_load_file_name = _kale_load_file_name[0]\
+        \n model = _kale_resource_load(os.path.join(\
+        \n     _kale_data_directory, _kale_load_file_name))\
+        \n \
+        \n if \"validation_generator\" not in _kale_directory_file_names:\
+        \n     raise ValueError(\"validation_generator\" +\
+        \n                      \" does not exists in directory\")\
+        \n \
+        \n _kale_load_file_name = [\
+        \n     f\
+        \n     for f in os.listdir(_kale_data_directory)\
+        \n     if os.path.isfile(os.path.join(_kale_data_directory, f)) and\
+        \n     os.path.splitext(f)[0] == \"validation_generator\"\
+        \n ]\
+        \n if len(_kale_load_file_name) > 1:\
+        \n     raise ValueError(\"Found multiple files with name \" +\
+        \n                      \"validation_generator\" + \": \" + str(_kale_load_file_name))\
+        \n _kale_load_file_name = _kale_load_file_name[0]\
+        \n validation_generator = _kale_resource_load(\
+        \n     os.path.join(_kale_data_directory, _kale_load_file_name))\
+        \n #\
+        \n #if \"train_generator\" not in _kale_directory_file_names:\
+        \n #    raise ValueError(\"train_generator\" + \" does not exists in directory\")\
+        \n #\
+        \n #_kale_load_file_name = [\
+        \n #    f\
+        \n #    for f in os.listdir(_kale_data_directory)\
+        \n #    if os.path.isfile(os.path.join(_kale_data_directory, f)) and\
+        \n #    os.path.splitext(f)[0] == \"train_generator\"\
+        \n #]\
+        \n #if len(_kale_load_file_name) > 1:\
+        \n #    raise ValueError(\"Found multiple files with name \" +\
+        \n #                     \"train_generator\" + \": \" + str(_kale_load_file_name))\
+        \n _kale_load_file_name = _kale_load_file_name[0]\
+        \n train_generator = _kale_resource_load(\
+        \n     os.path.join(_kale_data_directory, _kale_load_file_name))\
+        \n # -----------------------DATA LOADING END----------------------------------\
+        \n \
+        \n import numpy as np\
+        \n import seaborn as sns\
+        \n import matplotlib.pyplot as plt\
+        \n import utils\
+        \n import os\
+        \n import tensorflow as tf\
+        \n from tensorflow.keras.preprocessing.image import ImageDataGenerator\
+        \n from tensorflow.keras.layers import Dense, Input, Dropout, Flatten, Conv2D\
+        \n from tensorflow.keras.layers import BatchNormalization, Activation, MaxPooling2D\
+        \n from tensorflow.keras.models import Model, Sequential\
+        \n from tensorflow.keras.optimizers import Adam\
+        \n from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau\
+        \n from tensorflow.keras.utils import plot_model\
+        \n \
+        \n from IPython.display import SVG, Image\
+        \n from livelossplot.tf_keras import PlotLossesCallback\
+        \n \
+        \n# img_size = 48\
+        \n# batch_size = 64\
+        \n# \
+        \n# datagen_train = ImageDataGenerator(horizontal_flip=True)\
+        \n# \
+        \n# train_generator = datagen_train.flow_from_directory(\"/tmp/train/\",\
+        \n#                                                     target_size=(\
+        \n#                                                         img_size, img_size),\
+        \n#                                                     color_mode=\"grayscale\",\
+        \n#                                                     batch_size=batch_size,\
+        \n#                                                     class_mode='categorical',\
+        \n#                                                     shuffle=True)\
+        \n# \
+        \n# datagen_validation = ImageDataGenerator(horizontal_flip=True)\
+        \n# validation_generator = datagen_validation.flow_from_directory(\"/tmp/test/\",\
+        \n#                                                               target_size=(\
+        \n#                                                                   img_size, img_size),\
+        \n#                                                              color_mode=\"grayscale\",\
+        \n#                                                               batch_size=batch_size,\
+        \n#                                                               class_mode='categorical',\
+        \n#                                                               shuffle=False)\
+        \n#\
+        \n# # Initialising the CNN\
+        \n# model = Sequential()\
+        \n#\
+        \n# # 1 - Convolution\
+        \n# model.add(Conv2D(64, (3, 3), padding='same', input_shape=(48, 48, 1)))\
+        \n# model.add(BatchNormalization())\
+        \n# model.add(Activation('relu'))\
+        \n# model.add(MaxPooling2D(pool_size=(2, 2)))\
+        \n# model.add(Dropout(0.25))\
+        \n#\
+        \n# # 2nd Convolution layer\
+        \n# model.add(Conv2D(128, (5, 5), padding='same'))\
+        \n# model.add(BatchNormalization())\
+        \n# model.add(Activation('relu'))\
+        \n# model.add(MaxPooling2D(pool_size=(2, 2)))\
+        \n# model.add(Dropout(0.25))\
+        \n#\
+        \n# # 3rd Convolution layer\
+        \n# model.add(Conv2D(512, (3, 3), padding='same'))\
+        \n# model.add(BatchNormalization())\
+        \n# model.add(Activation('relu'))\
+        \n# model.add(MaxPooling2D(pool_size=(2, 2)))\
+        \n# model.add(Dropout(0.25))\
+        \n#\
+        \n# # 4th Convolution layer\
+        \n# model.add(Conv2D(512, (3, 3), padding='same'))\
+        \n# model.add(BatchNormalization())\
+        \n# model.add(Activation('relu'))\
+        \n# model.add(MaxPooling2D(pool_size=(2, 2)))\
+        \n# model.add(Dropout(0.25))\
+        \n#\
+        \n# # Flattening\
+        \n# model.add(Flatten())\
+        \n#\
+        \n# # Fully connected layer 1st layer\
+        \n# model.add(Dense(256))\
+        \n# model.add(BatchNormalization())\
+        \n# model.add(Activation('relu'))\
+        \n# model.add(Dropout(0.25))\
+        \n#\
+        \n# # Fully connected layer 2nd layer\
+        \n# model.add(Dense(512))\
+        \n# model.add(BatchNormalization())\
+        \n# model.add(Activation('relu'))\
+        \n# model.add(Dropout(0.25))\
+        \n#\
+        \n# model.add(Dense(7, activation='softmax'))\
+        \n#\
+        \n# opt = Adam(lr=0.0005)\
+        \n# model.compile(optimizer=opt, loss='categorical_crossentropy',\
+        \n#               metrics=['accuracy'])\
+        \n# model.summary()\
+        \n \
+        \n epochs = 2\
+        \n steps_per_epoch = train_generator.n//train_generator.batch_size\
+        \n validation_steps = validation_generator.n//validation_generator.batch_size\
+        \n \
+        \n reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1,\
+        \n                               patience=2, min_lr=0.00001, mode='auto')\
+        \n checkpoint = ModelCheckpoint(\"model_weights.h5\", monitor='val_accuracy',\
+        \n                              save_weights_only=True, mode='max', verbose=1)\
+        \n callbacks = [PlotLossesCallback(), checkpoint, reduce_lr]\
+        \n \
+        \n history = model.fit(\
+        \n     x=train_generator,\
+        \n     steps_per_epoch=steps_per_epoch,\
+        \n     epochs=epochs,\
+        \n     validation_data=validation_generator,\
+        \n     validation_steps=validation_steps,\
+        \n     callbacks=callbacks\
+        \n )\
+        \n \
+        \n model_json = model.to_json()\
+        \n with open(\"model.json\", \"w\") as json_file:\
+        \n     json_file.write(model_json)\n
+        \n#import argparse\
+        \n#_parser = argparse.ArgumentParser(prog='Fit_Model', description='')\
+        \n#_parsed_args = vars(_parser.parse_args())\
+        \n#_output_files = _parsed_args.pop(\"_output_paths\", [])\
+        \n#_outputs = fit_model(**_parsed_args)"#
+      image: fkhader/tensorflow-1.14.0-notebook-cpu:v2
+      securityContext:
+        runAsUser: 1000570000
+      volumeMounts:
+      - mountPath: /marshal
+        name: kale-marshal-volume
+      workingDir: /tmp/Facial-Expression
+    inputs:
+      parameters:
+      - name: kale-marshal-volume-name
+    metadata:
+      annotations:
+        pipelines.kubeflow.org/component_spec: '{"inputs": [], "name": "Fit model",
+          "outputs": []}'
+    name: fit-model
+    volumes:
+    - name: kale-marshal-volume
+      persistentVolumeClaim:
+        claimName: pred-pvc
+  - name: kale-marshal-volume
+    outputs:
+      parameters:
+      - name: kale-marshal-volume-manifest
+        valueFrom:
+          jsonPath: '{}'
+      - name: kale-marshal-volume-name
+        valueFrom:
+          jsonPath: '{.metadata.name}'
+      - name: kale-marshal-volume-size
+        valueFrom:
+          jsonPath: '{.status.capacity.storage}'
+    resource:
+      action: create
+      manifest: "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: '{{workflow.name}}-kale-marshal-pvc'\n\
+        spec:\n  accessModes:\n  - ReadWriteMany\n  resources:\n    requests:\n  \
+        \    storage: 1Gi\n"
